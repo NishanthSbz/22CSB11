@@ -17,32 +17,37 @@ export default function UrlInputForm({ onShorten }) {
     if (urls.length < 5) setUrls([...urls, { longUrl: "", validity: "", shortcode: "" }]);
   };
 
-  const handleSubmit = async () => {
-    setError("");
+    const handleSubmit = async () => {
+      setError("");
+      
+      for (let i = 0; i < urls.length; i++) {
+        const { longUrl, validity, shortcode } = urls[i];
+        if (!isValidUrl(longUrl)) {
+          setError(`Row ${i + 1}: Invalid URL`);
+          return;
+        }
+        if (validity && !isValidMinutes(validity)) {
+          Log("frontend", "warn", "utils", `Invalid validity period: ${validity}`);
+          setError(`Row ${i + 1}: Invalid validity period`);
+          return;
+        }
+        if (shortcode && !isValidShortcode(shortcode)) {
+          Log("frontend", "warn", "utils", `Invalid shortcode format: ${shortcode}`);
+          setError(`Row ${i + 1}: Invalid shortcode`);
+          return;
+        }
+      }
 
-    for (let i = 0; i < urls.length; i++) {
-      const { longUrl, validity, shortcode } = urls[i];
-      if (!isValidUrl(longUrl)) {
-        setError(`Row ${i + 1}: Invalid URL`);
-        return;
+      try {
+        Log("frontend", "debug", "api", `Sending request to shorten ${urls.length} URLs`);
+        const res = await api.post("/shorten", { urls });
+        Log("frontend", "info", "api", `Successfully shortened ${urls.length} URLs`);
+        onShorten(res.data);
+      } catch (err) {
+        Log("frontend", "error", "api", `URL shortening failed: ${err.message}`);
+        setError("Failed to shorten URLs. Try again.");
       }
-      if (validity && !isValidMinutes(validity)) {
-        setError(`Row ${i + 1}: Invalid validity period`);
-        return;
-      }
-      if (shortcode && !isValidShortcode(shortcode)) {
-        setError(`Row ${i + 1}: Invalid shortcode`);
-        return;
-      }
-    }
-
-    try {
-      const res = await api.post("/shorten", { urls });
-      onShorten(res.data);
-    } catch (err) {
-      setError("Failed to shorten URLs. Try again.");
-    }
-  };
+    };
 
   return (
     <Paper sx={{ p: 3, mb: 2 }}>
